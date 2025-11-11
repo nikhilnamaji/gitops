@@ -10,46 +10,52 @@ jobs:
     runs-on: self-hosted
 
     steps:
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Verify Docker installation
       - name: Verify Docker installation
+        shell: pwsh
         run: docker --version
 
-      # ✅ Use bash explicitly to fix non-TTY login issue
-      - name: Log in to Docker Hub (Windows Safe)
-        shell: bash
+      # Log in to Docker Hub (Windows PowerShell compatible)
+      - name: Log in to Docker Hub
+        shell: pwsh
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          docker login -u $env:DOCKERHUB_USERNAME -p $env:DOCKERHUB_TOKEN
 
+      # Build Docker image
       - name: Build Docker image
-        shell: bash
+        shell: pwsh
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          IMAGE_NAME=${DOCKERHUB_USERNAME}/hello-app:${{ github.run_number }}
+          $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:${{ github.run_number }}"
           docker build -t $IMAGE_NAME .
 
-      - name: Push Docker image to Docker Hub
-        shell: bash
+      # Push Docker image to Docker Hub
+      - name: Push Docker image
+        shell: pwsh
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          IMAGE_NAME=${DOCKERHUB_USERNAME}/hello-app:${{ github.run_number }}
+          $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:${{ github.run_number }}"
           docker push $IMAGE_NAME
 
-      - name: Update Kubernetes Deployment
-        shell: bash
+      # Update Kubernetes Deployment
+      - name: Update Kubernetes deployment image
+        shell: pwsh
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          IMAGE_NAME=${DOCKERHUB_USERNAME}/hello-app:${{ github.run_number }}
+          $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:${{ github.run_number }}"
           kubectl set image deployment/hello-app hello-app=$IMAGE_NAME --namespace default
 
+      # Verify rollout
       - name: Verify Deployment rollout
-        shell: bash
-        run: |
-          kubectl rollout status deployment/hello-app --namespace default
+        shell: pwsh
+        run: kubectl rollout status deployment/hello-app --namespace default
