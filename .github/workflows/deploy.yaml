@@ -10,16 +10,17 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      # Checkout repository
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
+        shell: pwsh
 
-      # Verify Docker installation
+      # 2️⃣ Verify Docker installation
       - name: Verify Docker installation
         shell: pwsh
         run: docker --version
 
-      # Log in to Docker Hub (Windows PowerShell compatible)
+      # 3️⃣ Log in to Docker Hub (Windows PowerShell compatible)
       - name: Log in to Docker Hub
         shell: pwsh
         env:
@@ -28,7 +29,7 @@ jobs:
         run: |
           docker login -u $env:DOCKERHUB_USERNAME -p $env:DOCKERHUB_TOKEN
 
-      # Build Docker image
+      # 4️⃣ Build Docker image
       - name: Build Docker image
         shell: pwsh
         env:
@@ -37,7 +38,7 @@ jobs:
           $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:${{ github.run_number }}"
           docker build -t $IMAGE_NAME .
 
-      # Push Docker image to Docker Hub
+      # 5️⃣ Push Docker image to Docker Hub
       - name: Push Docker image
         shell: pwsh
         env:
@@ -46,7 +47,7 @@ jobs:
           $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:${{ github.run_number }}"
           docker push $IMAGE_NAME
 
-      # Update Kubernetes Deployment
+      # 6️⃣ Update Kubernetes Deployment
       - name: Update Kubernetes deployment image
         shell: pwsh
         env:
@@ -55,7 +56,7 @@ jobs:
           $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:${{ github.run_number }}"
           kubectl set image deployment/hello-app hello-app=$IMAGE_NAME --namespace default
 
-      # Verify rollout
+      # 7️⃣ Verify rollout
       - name: Verify Deployment rollout
         shell: pwsh
         run: kubectl rollout status deployment/hello-app --namespace default
