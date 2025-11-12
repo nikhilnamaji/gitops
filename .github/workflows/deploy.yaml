@@ -6,57 +6,60 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  build-deploy:
     runs-on: self-hosted
 
     steps:
-      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Verify Docker and kubectl are available
-      - name: Check Docker and kubectl
-        run: |
-          docker --version
-          kubectl version --client
-          minikube status
+      - name: Verify Docker
+        run: docker --version
 
-      # 3️⃣ Docker login using GitHub Secrets
-      - name: Login to Docker Hub
+      - name: Start Minikube if not running
+        run: |
+          echo "Checking Minikube status..."
+          if (!(minikube status | Select-String 'Running')) {
+            echo "Starting Minikube..."
+            minikube start --driver=docker
+          } else {
+            echo "✅ Minikube already running"
+          }
+
+      - name: Verify kubectl connection
+        run: |
+          kubectl get nodes
+
+      - name: Log in to Docker Hub
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+        run: docker login -u "$env:DOCKERHUB_USERNAME" -p "$env:DOCKERHUB_TOKEN"
 
-      # 4️⃣ Build Docker image and tag it
       - name: Build Docker image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          IMAGE_NAME=${DOCKERHUB_USERNAME}/hello-app:${{ github.run_number }}
-          echo "Building image $IMAGE_NAME"
+          $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:$env:GITHUB_RUN_NUMBER"
           docker build -t $IMAGE_NAME .
+          docker tag $IMAGE_NAME hello-app:latest
 
-      # 5️⃣ Push Docker image to Docker Hub
       - name: Push Docker image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          IMAGE_NAME=${DOCKERHUB_USERNAME}/hello-app:${{ github.run_number }}
+          $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:$env:GITHUB_RUN_NUMBER"
           docker push $IMAGE_NAME
 
-      # 6️⃣ Deploy to Minikube (local cluster)
       - name: Deploy to Minikube
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          IMAGE_NAME=${DOCKERHUB_USERNAME}/hello-app:${{ github.run_number }}
-          echo "Deploying $IMAGE_NAME to Minikube..."
-          kubectl set image deployment/hello-app hello-app=$IMAGE_NAME --namespace default || \
-          kubectl create deployment hello-app --image=$IMAGE_NAME --namespace default
+          $IMAGE_NAME = "$env:DOCKERHUB_USERNAME/hello-app:$env:GITHUB_RUN_NUMBER"
+          kubectl set image deployment/hello-app hello-app=$IMAGE_NAME --namespace default
 
-      # 7️⃣ Verify rollout
-      - name: Verify deployment rollout
-        run: |
-          kubectl rollout status deployment/hello-app --namespace default
+      - name: Verify Deployment rollout
+        run: kubectl rollout status deployment/hello-app --namespace default
