@@ -2,7 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ "main" ]   # runs when you push to main
+    branches: [ "main" ]
 
 jobs:
   docker:
@@ -20,6 +20,9 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v4
         with:
-          context: .
+          context: ./podinfo          # set build context to your app folder
+          file: ./podinfo/Dockerfile  # explicitly point to Dockerfile
           push: true
-          tags: nikhilnamaji/hello-app:latest
+          tags: |
+            nikhilnamaji/hello-app:latest
+            nikhilnamaji/hello-app:${{ github.sha }}
